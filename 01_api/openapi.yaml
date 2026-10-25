@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: AeroHarvest API
+  version: 1.0.0
+  description: HVAC 배기 바람 에너지 회수 시나리오 API. 결과는 현장 설치 확정값이 아닙니다.
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /buildings:
+    get:
+      summary: 우선순위순 건물 목록
+      responses:
+        '200': { description: 건물 목록 }
+  /buildings/{buildingId}:
+    get:
+      summary: 건물과 시간대별 테스트 데이터
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 건물 상세 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /assumptions/defaults:
+    get:
+      summary: 화면 계산 조건 기본값과 공식
+      responses:
+        '200': { description: 기본 가정 }
+  /simulations:
+    post:
+      summary: 단일 설치 시나리오 계산
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SimulationRequest' }
+            examples:
+              timeSlot:
+                value:
+                  buildingId: NICHOLLS
+                  sourceMode: TIME_SLOT
+                  hour: 15
+                  collectionAreaM2: 0.8
+                  efficiencyPercent: 25
+                  distanceM: 2
+                  angleDegrees: 0
+                  operatingHoursPerDay: 8
+                  operatingDaysPerYear: 365
+                  tariffKrwPerKwh: 150
+                  carbonFactorKgPerKwh: 0.4
+                  installationCostKrw: 1000000
+      responses:
+        '200': { description: 계산 결과 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /simulations/compare:
+    post:
+      summary: 기준안과 현재안 비교
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseline, current]
+              properties:
+                baseline: { $ref: '#/components/schemas/SimulationRequest' }
+                current: { $ref: '#/components/schemas/SimulationRequest' }
+      responses:
+        '200': { description: 두 계산 결과와 전력 차이 }
+  /measurements:
+    post:
+      summary: 현장 측정 데이터 등록
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeasurementRequest' }
+      responses:
+        '201': { description: 등록된 측정 데이터 }
+    get:
+      summary: 측정 데이터 페이지 조회
+      parameters:
+        - { name: buildingId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, default: 20 } }
+      responses:
+        '200': { description: 측정 데이터 페이지 }
+components:
+  responses:
+    BadRequest: { description: 잘못된 요청 }
+    NotFound: { description: 데이터를 찾을 수 없음 }
+  schemas:
+    SimulationRequest:
+      type: object
+      required: [buildingId, sourceMode, collectionAreaM2, efficiencyPercent, distanceM, angleDegrees, operatingHoursPerDay, operatingDaysPerYear, tariffKrwPerKwh, carbonFactorKgPerKwh]
+      properties:
+        buildingId: { type: string, example: NICHOLLS }
+        sourceMode: { type: string, enum: [TIME_SLOT, DIRECT_SPEED] }
+        hour: { type: integer, minimum: 0, maximum: 23, description: TIME_SLOT일 때 필수 }
+        windSpeedMS: { type: number, minimum: 0, description: DIRECT_SPEED일 때 필수 }
+        collectionAreaM2: { type: number, exclusiveMinimum: 0 }
+        efficiencyPercent: { type: number, minimum: 0, maximum: 59.3 }
+        distanceM: { type: number, minimum: 1, maximum: 8 }
+        angleDegrees: { type: number, minimum: -80, maximum: 80 }
+        operatingHoursPerDay: { type: number, minimum: 0, maximum: 24 }
+        operatingDaysPerYear: { type: integer, minimum: 1, maximum: 365 }
+        tariffKrwPerKwh: { type: number, minimum: 0 }
+        carbonFactorKgPerKwh: { type: number, minimum: 0 }
+        installationCostKrw: { type: [number, 'null'], minimum: 0 }
+    MeasurementRequest:
+      type: object
+      required: [buildingId, ventId, measuredAt, timezone, windSpeedMS, ventAreaM2, sensorId, qualityFlag, operatingState]
+      properties:
+        buildingId: { type: string, example: NICHOLLS }
+        ventId: { type: string, example: NICHOLLS-ROOF-01 }
+        measuredAt: { type: string, format: date-time, example: '2026-10-24T15:00:00+09:00' }
+        timezone: { type: string, example: Asia/Seoul }
+        windSpeedMS: { type: number, minimum: 0 }
+        ventAreaM2: { type: number, exclusiveMinimum: 0 }
+        sensorId: { type: string, example: SENSOR-001 }
+        qualityFlag: { type: string, enum: [VALID, SUSPECT, INVALID] }
+        operatingState: { type: string, enum: [ON, OFF, UNKNOWN] }

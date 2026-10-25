@@ -1,0 +1,63 @@
+# AeroHarvest 백엔드 자동 배포
+# main 에 올리면 홈서버(self-hosted runner, 이름표 home-server)에서
+# 테스트 → 이미지 빌드(aeromap:latest) → docker compose 로 app 서비스만 다시 띄움 → /actuator/health 확인.
+# 홈서버 구성: ~/docker/aeromap/compose.yaml (서비스 app, 컨테이너 aeromap-app, 네트워크 proxy, traefik 앞단)
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: aeromap-deploy
+  cancel-in-progress: false
+
+env:
+  COMPOSE_DIR: /home/kyunghoon/docker/aeromap
+  SERVICE: app
+  IMAGE: aeromap:latest
+  CONTAINER: aeromap-app
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, home-server]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 테스트 (서버에 Java 설치 없이 도커 안에서, 테스트는 메모리 H2 사용)
+        run: docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/app -w /app maven:3.9-eclipse-temurin-21 mvn -B test -Dmaven.repo.local=/app/.m2
+
+      - name: 이전 이미지 보관 (되돌리기용)
+        run: docker image inspect "$IMAGE" >/dev/null 2>&1 && docker tag "$IMAGE" aeromap:previous || echo "이전 이미지 없음"
+
+      - name: 이미지 빌드
+        run: docker build -t "$IMAGE" .
+
+      - name: 다시 띄우기
+        working-directory: ${{ env.COMPOSE_DIR }}
+        run: docker compose up -d --no-deps "$SERVICE"
+
+      - name: 살아 있는지 확인 (proxy 네트워크 안에서 직접 호출)
+        run: |
+          for i in $(seq 1 30); do
+            code=$(docker run --rm --network proxy curlimages/curl:8.10.1 -s -o /dev/null -w '%{http_code}' \
+              "http://$CONTAINER:8080/actuator/health" || true)
+            if [ "$code" = "200" ]; then echo "응답 200 — 정상 기동"; exit 0; fi
+            sleep 2
+          done
+          echo "60초 안에 정상 응답이 없어요"
+          docker compose -f "$COMPOSE_DIR/compose.yaml" logs --tail 80 "$SERVICE"
+          exit 1
+
+      - name: 실패하면 이전 이미지로 되돌리기
+        if: failure()
+        working-directory: ${{ env.COMPOSE_DIR }}
+        run: |
+          if docker image inspect aeromap:previous >/dev/null 2>&1; then
+            docker tag aeromap:previous "$IMAGE" && docker compose up -d --no-deps "$SERVICE" && echo "이전 버전으로 되돌렸어요"
+          fi
+
+      - name: 오래된 이미지 정리
+        if: always()
+        run: docker image prune -f
