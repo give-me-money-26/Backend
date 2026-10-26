@@ -5,6 +5,7 @@ info:
   description: HVAC 배기 바람 에너지 회수 시나리오 API. 결과는 현장 설치 확정값이 아닙니다.
 servers:
   - url: http://localhost:8080/api/v1
+security: []
 paths:
   /buildings:
     get:
@@ -88,10 +89,236 @@ paths:
         - { name: size, in: query, schema: { type: integer, minimum: 1, default: 20 } }
       responses:
         '200': { description: 측정 데이터 페이지 }
+  /buildings/{buildingId}/vents:
+    get:
+      summary: 건물의 배기구 목록
+      parameters:
+        - { name: buildingId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 좌표·치수·근거 상태를 포함한 배기구 목록 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /vents/{ventId}:
+    get:
+      summary: 배기구 상세
+      parameters:
+        - { name: ventId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 배기구 상세 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sensors:
+    get:
+      summary: 센서 목록
+      responses:
+        '200': { description: 교정·상태를 포함한 센서 목록 }
+  /sensors/{sensorId}:
+    get:
+      summary: 센서 상세
+      parameters:
+        - { name: sensorId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 센서 상세 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /measurements/batch:
+    post:
+      summary: 측정값 배치 등록
+      description: 한 요청에 최대 1,000건을 등록하며 clientRecordId 중복은 409로 거절합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeasurementBatchRequest' }
+      responses:
+        '200': { description: 등록 결과 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /measurements/{measurementId}:
+    get:
+      summary: 측정값 상세
+      parameters:
+        - { name: measurementId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: 측정값과 계산 밀도 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /measurements/{measurementId}/quality:
+    patch:
+      summary: 측정 품질 변경
+      parameters:
+        - { name: measurementId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QualityUpdateRequest' }
+      responses:
+        '200': { description: 변경된 측정값 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /measurements/{measurementId}/history:
+    get:
+      summary: 측정 품질 변경 이력
+      parameters:
+        - { name: measurementId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: 최신순 변경 이력 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /measurements/summary:
+    get:
+      summary: 측정값 요약과 시간대 집계
+      parameters:
+        - { name: buildingId, in: query, schema: { type: string } }
+        - { name: ventId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: includeSuspect, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200': { description: 건수·평균/최대 풍속·평균 밀도·시간대 집계 }
+  /buildings/{buildingId}/scene-config:
+    get:
+      summary: 3D 장면 설정
+      parameters:
+        - { name: buildingId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 좌표계·카메라·배기구·제한사항 }
+  /buildings/{buildingId}/dashboard:
+    get:
+      summary: 건물 대시보드 통합 응답
+      parameters:
+        - { name: buildingId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 건물·배기구·측정 요약·누락 근거 }
+  /exports/measurements:
+    get:
+      summary: 측정값 CSV 내보내기
+      parameters:
+        - { name: buildingId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: UTF-8 CSV
+          content:
+            text/csv:
+              schema: { type: string }
+  /reference-factors/current:
+    get:
+      summary: 현재 적용 가능한 계수 목록
+      responses:
+        '200': { description: 값·단위·출처·버전·상태 }
+  /turbines:
+    get:
+      summary: 터빈 목록
+      responses:
+        '200': { description: 터빈과 곡선 검증 상태 }
+  /turbines/{turbineId}:
+    get:
+      summary: 터빈 상세와 성능곡선
+      parameters:
+        - { name: turbineId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 터빈 상세와 풍속-전력 점 목록 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /simulations/timeseries:
+    post:
+      summary: 실측 시계열 기반 발전량 계산
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TimeseriesSimulationRequest' }
+      responses:
+        '200': { description: 시계열 전력·에너지·비용·탄소·제한사항 }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+  /optimizations/placement:
+    post:
+      summary: 거리·각도 배치 후보 탐색
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlacementOptimizationRequest' }
+      responses:
+        '200': { description: 점수순 후보와 모델 제한사항 }
+  /validations:
+    post:
+      summary: 예측-실측 검증 생성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidationRequest' }
+      responses:
+        '200': { description: MAE·RMSE·MAPE·Bias 검증 결과 }
+    get:
+      summary: 검증 결과 목록
+      parameters:
+        - { name: buildingId, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 최신순 검증 결과 }
+  /validations/{validationId}:
+    get:
+      summary: 검증 결과 상세
+      parameters:
+        - { name: validationId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 검증 결과 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /candidates:
+    get:
+      summary: 설치 검토 후보 목록
+      parameters:
+        - { name: buildingId, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 근거 상태와 다음 조치 추천 }
+  /candidates/{candidateId}:
+    get:
+      summary: 후보 근거 상세
+      description: candidateId 형식은 buildingId:ventId입니다.
+      parameters:
+        - { name: candidateId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 최신 검증·판정·누락 근거 }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /decisions:
+    post:
+      summary: 후보 판정 생성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionCreateRequest' }
+      responses:
+        '200': { description: 생성된 판정 }
+    get:
+      summary: 후보 판정 목록
+      parameters:
+        - { name: candidateId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [MEASURE, HOLD, REVIEW] } }
+      responses:
+        '200': { description: 최신순 판정 목록 }
+  /decisions/{decisionId}:
+    get:
+      summary: 판정 상세와 변경 이력
+      parameters:
+        - { name: decisionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 판정과 변경 이력 }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      summary: 판정 변경
+      parameters:
+        - { name: decisionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionUpdateRequest' }
+      responses:
+        '200': { description: 변경된 판정과 이력 }
 components:
   responses:
     BadRequest: { description: 잘못된 요청 }
     NotFound: { description: 데이터를 찾을 수 없음 }
+    Conflict: { description: 중복된 요청 식별자 }
+    UnprocessableEntity: { description: 입력 형식은 맞지만 계산할 근거 데이터가 부족함 }
   schemas:
     SimulationRequest:
       type: object
@@ -123,3 +350,102 @@ components:
         sensorId: { type: string, example: SENSOR-001 }
         qualityFlag: { type: string, enum: [VALID, SUSPECT, INVALID] }
         operatingState: { type: string, enum: [ON, OFF, UNKNOWN] }
+    MeasurementBatchRequest:
+      type: object
+      required: [batchId, records]
+      properties:
+        batchId: { type: string }
+        records:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required: [clientRecordId, measurement]
+            properties:
+              clientRecordId: { type: string }
+              measurement: { $ref: '#/components/schemas/MeasurementRequest' }
+    QualityUpdateRequest:
+      type: object
+      required: [qualityFlag, reason, actor]
+      properties:
+        qualityFlag: { type: string, enum: [VALID, SUSPECT, INVALID] }
+        reason: { type: string }
+        actor: { type: string }
+    TimeseriesSimulationRequest:
+      type: object
+      required: [buildingId, ventId, turbineId, from, to, distanceM, angleDegrees, tariffKrwPerKwh, carbonFactorKgPerKwh]
+      properties:
+        buildingId: { type: string }
+        ventId: { type: string }
+        turbineId: { type: string }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        qualityPolicy: { type: string, enum: [VALID_ONLY, VALID_AND_SUSPECT], default: VALID_ONLY }
+        distanceM: { type: number, exclusiveMinimum: 0 }
+        angleDegrees: { type: number }
+        tariffKrwPerKwh: { type: number, minimum: 0 }
+        carbonFactorKgPerKwh: { type: number, minimum: 0 }
+        installationCostKrw: { type: [number, 'null'], minimum: 0 }
+        maintenanceCostKrw: { type: [number, 'null'], minimum: 0 }
+    Range:
+      type: object
+      required: [min, max, step]
+      properties:
+        min: { type: number }
+        max: { type: number }
+        step: { type: number, exclusiveMinimum: 0 }
+    PlacementOptimizationRequest:
+      type: object
+      required: [buildingId, ventId, source, collectionAreaM2, efficiencyPercent, distanceRangeM, angleRangeDegrees]
+      properties:
+        buildingId: { type: string }
+        ventId: { type: string }
+        source: { type: string, enum: [TIME_SLOT, MEASUREMENT_AVERAGE] }
+        hour: { type: [integer, 'null'], minimum: 0, maximum: 23 }
+        collectionAreaM2: { type: number, exclusiveMinimum: 0 }
+        efficiencyPercent: { type: number, minimum: 0 }
+        distanceRangeM: { $ref: '#/components/schemas/Range' }
+        angleRangeDegrees: { $ref: '#/components/schemas/Range' }
+        limit: { type: [integer, 'null'], minimum: 1, maximum: 100, default: 10 }
+    ValidationRequest:
+      type: object
+      required: [buildingId, ventId, predictionModelVersion, samples]
+      properties:
+        buildingId: { type: string }
+        ventId: { type: string }
+        predictionModelVersion: { type: string }
+        samples:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [predictedW, actualW]
+            properties:
+              predictedW: { type: number, minimum: 0 }
+              actualW: { type: number, minimum: 0 }
+        thresholds:
+          type: [object, 'null']
+          properties:
+            maxMaeW: { type: number, minimum: 0 }
+            maxRmseW: { type: number, minimum: 0 }
+            maxMapePercent: { type: number, minimum: 0 }
+            maxAbsoluteBiasW: { type: number }
+    DecisionCreateRequest:
+      type: object
+      required: [candidateId, status, reason]
+      properties:
+        candidateId: { type: string, example: 'NICHOLLS:NICHOLLS-ROOF-01' }
+        status: { type: string, enum: [MEASURE, HOLD, REVIEW] }
+        reason: { type: string }
+        assignee: { type: [string, 'null'] }
+        dueAt: { type: [string, 'null'], format: date-time }
+    DecisionUpdateRequest:
+      type: object
+      required: [actor]
+      properties:
+        status: { type: [string, 'null'], enum: [MEASURE, HOLD, REVIEW, null] }
+        reason: { type: [string, 'null'] }
+        assignee: { type: [string, 'null'] }
+        dueAt: { type: [string, 'null'], format: date-time }
+        actor: { type: string }
