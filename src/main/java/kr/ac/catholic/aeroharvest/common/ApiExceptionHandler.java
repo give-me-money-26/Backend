@@ -32,6 +32,16 @@ public class ApiExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "입력값을 확인해주세요.", fields, request);
     }
 
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<ApiError> conflict(ConflictException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, exception.getMessage(), Map.of(), request);
+    }
+
+    @ExceptionHandler(UnprocessableEntityException.class)
+    ResponseEntity<ApiError> unprocessable(UnprocessableEntityException exception, HttpServletRequest request) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage(), Map.of(), request);
+    }
+
     private ResponseEntity<ApiError> response(HttpStatus status, String message, Map<String, String> fields,
                                                HttpServletRequest request) {
         return ResponseEntity.status(status).body(new ApiError(

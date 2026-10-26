@@ -8,7 +8,9 @@
 - 건물 5개와 시간대별 테스트 밀도 제공
 - 풍속·배치·운전 조건 기반 발전량, 절감액, 탄소 저감, 단순 회수기간 계산
 - 기준안과 현재안 비교
-- 향후 현장 센서 데이터 등록·조회
+- 배기구·센서·현장 측정 배치 수집, 품질 이력, 집계·CSV 내보내기
+- 터빈 곡선, 시계열 발전량, 배치 탐색, 예측 검증
+- 후보지 근거 조회와 MEASURE/HOLD/REVIEW 의사결정 이력
 - H2 + Flyway + Spring Data JPA
 - 입력 검증, 공통 오류 응답, CORS, Actuator 상태 확인
 
@@ -29,4 +31,7 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-21'
 ```
 
 상태 확인: `GET http://localhost:8080/actuator/health`
+
+확장 API 26개를 포함한 전체 계약은 [`01_api/openapi.yaml`](./01_api/openapi.yaml), 구현 목록은
+[`02_기능/구현목록.md`](./02_기능/구현목록.md)에서 확인할 수 있습니다.
 
