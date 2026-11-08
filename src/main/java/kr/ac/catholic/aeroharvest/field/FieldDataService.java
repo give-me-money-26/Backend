@@ -163,17 +163,22 @@ public class FieldDataService {
                 rs.getString("quality_flag"), rs.getString("operating_state"))).list();
         double average = rows.stream().mapToDouble(SummaryPoint::windSpeed).average().orElse(0);
         double maximum = rows.stream().mapToDouble(SummaryPoint::windSpeed).max().orElse(0);
+        double averageDensity = rows.stream().mapToDouble(point -> density(point.windSpeed())).average().orElse(0);
         Map<Integer, List<SummaryPoint>> grouped = new LinkedHashMap<>();
         for (var row : rows) grouped.computeIfAbsent(row.measuredAt().getHour(), ignored -> new ArrayList<>()).add(row);
         List<Map<String, Object>> hourly = grouped.entrySet().stream().map(entry -> {
             double avg = entry.getValue().stream().mapToDouble(SummaryPoint::windSpeed).average().orElse(0);
+            double avgDensity = entry.getValue().stream()
+                    .mapToDouble(point -> density(point.windSpeed())).average().orElse(0);
             return mapOf("hour", entry.getKey(), "count", entry.getValue().size(), "averageWindSpeedMS", avg,
-                    "averageDensityWM2", DENSITY_FACTOR * Math.pow(avg, 3));
+                    "averageDensityWM2", avgDensity);
         }).toList();
         return mapOf("buildingId", buildingId, "ventId", ventId, "from", from, "to", to,
                 "qualityPolicy", includeSuspect ? "VALID_AND_SUSPECT" : "VALID_ONLY",
                 "count", rows.size(), "averageWindSpeedMS", average, "maximumWindSpeedMS", maximum,
-                "averageDensityWM2", DENSITY_FACTOR * Math.pow(average, 3), "hourly", hourly);
+                "averageDensityWM2", averageDensity,
+                "densityAggregation", "AVERAGE_OF_INDIVIDUAL_DENSITIES",
+                "densityFormula", "0.5 × 1.225 × v³", "hourly", hourly);
     }
 
     @Transactional(readOnly = true)
@@ -286,6 +291,10 @@ public class FieldDataService {
     private static String csv(String value) {
         if (value == null) return "";
         return '"' + value.replace("\"", "\"\"") + '"';
+    }
+
+    private static double density(double windSpeedMS) {
+        return DENSITY_FACTOR * Math.pow(windSpeedMS, 3);
     }
 
     private static Map<String, Object> mapOf(Object... values) {

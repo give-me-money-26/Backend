@@ -15,6 +15,9 @@ public record SimulationResult(
         double annualSavingsKrw,
         double annualCarbonReductionKg,
         Double simplePaybackYears,
+        String resultType,
+        String calculationNotice,
+        String economicsNotice,
         AppliedConditions appliedConditions,
         List<String> limitations
 ) {

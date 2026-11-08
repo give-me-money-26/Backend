@@ -1,6 +1,8 @@
 package kr.ac.catholic.aeroharvest.model;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -86,7 +88,7 @@ public class ModelController {
             @NotNull PlacementSource source,
             @Min(0) @Max(23) Integer hour,
             @NotNull @Positive Double collectionAreaM2,
-            @NotNull @PositiveOrZero Double efficiencyPercent,
+            @NotNull @DecimalMin("0.0") @DecimalMax("59.3") Double efficiencyPercent,
             @NotNull @Valid Range distanceRangeM,
             @NotNull @Valid Range angleRangeDegrees,
             @Min(1) @Max(100) Integer limit
@@ -98,7 +100,7 @@ public class ModelController {
     public record ValidationThresholds(@PositiveOrZero Double maxMaeW,
                                        @PositiveOrZero Double maxRmseW,
                                        @PositiveOrZero Double maxMapePercent,
-                                       Double maxAbsoluteBiasW) {}
+                                       @PositiveOrZero Double maxAbsoluteBiasW) {}
 
     public record ValidationRequest(
             @NotBlank String buildingId,

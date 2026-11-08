@@ -42,14 +42,14 @@ class AeroHarvestBackendApplicationTests {
 	@Test
 	void storesAndSearchesAFieldMeasurement() {
 		var measuredAt = OffsetDateTime.parse("2026-10-24T15:00:00+09:00");
-		measurements.create(new MeasurementRequest("NICHOLLS", "ROOF-01", measuredAt, "Asia/Seoul",
-				3.2, 0.8, "SENSOR-001", QualityFlag.VALID, OperatingState.ON));
+		measurements.create(new MeasurementRequest("NICHOLLS", "NICHOLLS-ROOF-01", measuredAt, "Asia/Seoul",
+				3.2, 0.8, "SENSOR-DEMO-001", QualityFlag.VALID, OperatingState.ON));
 
 		var page = measurements.search("NICHOLLS", measuredAt.minusMinutes(1), measuredAt.plusMinutes(1),
 				PageRequest.of(0, 20));
 
 		assertThat(page.getTotalElements()).isEqualTo(1);
-		assertThat(page.getContent().get(0).sensorId()).isEqualTo("SENSOR-001");
+		assertThat(page.getContent().get(0).sensorId()).isEqualTo("SENSOR-DEMO-001");
 	}
 
 }
