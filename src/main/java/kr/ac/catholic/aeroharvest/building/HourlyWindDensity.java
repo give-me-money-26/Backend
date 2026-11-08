@@ -25,11 +25,26 @@ public class HourlyWindDensity {
     private double densityWM2;
     @Column(name = "source_type")
     private String sourceType;
+    @Column(name = "density_unit")
+    private String densityUnit;
+    @Column(name = "source_title")
+    private String sourceTitle;
+    @Column(name = "source_document")
+    private String sourceDocument;
+    @Column(name = "data_status")
+    private String dataStatus;
+    @Column(name = "derivation_method")
+    private String derivationMethod;
 
     protected HourlyWindDensity() {}
 
     public int getHourOfDay() { return hourOfDay; }
     public double getDensityWM2() { return densityWM2; }
     public String getSourceType() { return sourceType; }
+    public String getDensityUnit() { return densityUnit; }
+    public String getSourceTitle() { return sourceTitle; }
+    public String getSourceDocument() { return sourceDocument; }
+    public String getDataStatus() { return dataStatus; }
+    public String getDerivationMethod() { return derivationMethod; }
 }
 

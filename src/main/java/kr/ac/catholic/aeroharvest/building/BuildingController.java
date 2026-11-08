@@ -37,18 +37,22 @@ public class BuildingController {
                 .orElseThrow(() -> new NotFoundException("건물을 찾을 수 없습니다: " + buildingId));
         var series = densities.findByBuildingIdOrderByHourOfDay(buildingId).stream()
                 .map(value -> new HourlyPoint(value.getHourOfDay(), value.getDensityWM2(),
-                        Math.cbrt(value.getDensityWM2() / AIR_DENSITY_FACTOR), value.getSourceType()))
+                        Math.cbrt(value.getDensityWM2() / AIR_DENSITY_FACTOR), value.getSourceType(),
+                        value.getDensityUnit(), value.getSourceTitle(), value.getSourceDocument(),
+                        value.getDataStatus(), value.getDerivationMethod()))
                 .toList();
         return new BuildingDetail(building.getId(), building.getName(), building.getCode(), building.getMapX(),
                 building.getMapY(), building.getPriorityRank(), building.getModelType(), building.getAdvice(),
-                building.getDataStatus(), series);
+                building.getDataStatus(), "풍력 에너지 밀도(W/m²)는 실제 발전 전력(W)이 아닙니다.", series);
     }
 
     public record BuildingSummary(String id, String name, String code, double mapX, double mapY,
                                   int priorityRank, String modelType, String dataStatus, double peakDensityWM2) {}
-    public record HourlyPoint(int hour, double densityWM2, double inferredWindSpeedMS, String sourceType) {}
+    public record HourlyPoint(int hour, double densityWM2, double inferredWindSpeedMS, String sourceType,
+                              String densityUnit, String sourceTitle, String sourceDocument,
+                              String dataStatus, String derivationMethod) {}
     public record BuildingDetail(String id, String name, String code, double mapX, double mapY,
                                  int priorityRank, String modelType, String advice, String dataStatus,
-                                 List<HourlyPoint> hourlySeries) {}
+                                 String densityNotice, List<HourlyPoint> hourlySeries) {}
 }
 

@@ -56,12 +56,17 @@ public class SimulationService {
 
         return new SimulationResult(request.buildingId(), building.getName(), request.sourceMode(), hour,
                 windSpeed, density, placementFactor, recoveredPower, annualEnergy, annualSavings, annualCarbon,
-                payback, new SimulationResult.AppliedConditions(request.collectionAreaM2(),
+                payback, "PRELIMINARY_SCENARIO",
+                "예상 회수 전력은 풍력 에너지 밀도 × 유효 회수 면적 × 가정한 전체 변환계수로 계산합니다.",
+                "연간 절감액은 유지관리비·성능저하·할인율을 제외한 단순 시나리오입니다.",
+                new SimulationResult.AppliedConditions(request.collectionAreaM2(),
                 request.efficiencyPercent(), request.distanceM(), request.angleDegrees(),
                 request.operatingHoursPerDay(), request.operatingDaysPerYear(), request.tariffKrwPerKwh(),
                 request.carbonFactorKgPerKwh(), request.installationCostKrw()),
                 List.of("배치 계수는 설명용 가정식이며 CFD 또는 터빈 성능곡선이 아닙니다.",
+                        "전체 변환계수는 선행연구의 효율을 직접 적용한 값이 아닌 사용자 가정값입니다.",
                         "현재 조건이 입력한 운전시간 동안 유지된다는 단순 시나리오입니다.",
+                        "유지관리비, 성능저하와 할인율은 단순 투자 회수기간에 포함되지 않습니다.",
                         "설치 판단 전 소음, 압력손실, 배기량과 HVAC 영향을 현장에서 검증해야 합니다."));
     }
 }

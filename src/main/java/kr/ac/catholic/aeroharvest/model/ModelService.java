@@ -77,16 +77,21 @@ public class ModelService {
         double placement = placementFactor(request.distanceM(), request.angleDegrees());
         double energyKwh = 0;
         List<Map<String, Object>> series = new ArrayList<>();
-        double previousHours = 1.0;
+        int missingIntervals = 0;
         for (int i = 0; i < points.size(); i++) {
             var point = points.get(i);
-            double hours;
+            OffsetDateTime intervalEnd;
             if (i + 1 < points.size()) {
-                hours = Duration.between(point.measuredAt(), points.get(i + 1).measuredAt()).toMinutes() / 60.0;
-                hours = Math.max(0, Math.min(hours, 6));
-                if (hours > 0) previousHours = hours;
+                intervalEnd = points.get(i + 1).measuredAt().isBefore(request.to())
+                        ? points.get(i + 1).measuredAt() : request.to();
             } else {
-                hours = previousHours;
+                intervalEnd = request.to();
+            }
+            double rawHours = Duration.between(point.measuredAt(), intervalEnd).toMinutes() / 60.0;
+            double hours = Math.max(0, rawHours);
+            if (hours > 6) {
+                hours = 0;
+                missingIntervals++;
             }
             double rawPower = interpolate(curve, point.windSpeed());
             double power = rawPower * placement;
@@ -99,17 +104,19 @@ public class ModelService {
         Double payback = request.installationCostKrw() != null && savings > 0
                 ? request.installationCostKrw() / savings : null;
         List<String> limitations = new ArrayList<>();
-        limitations.add("마지막 측정값은 직전 간격을 대표한다고 가정합니다.");
-        limitations.add("6시간을 초과하는 간격은 6시간으로 제한합니다.");
+        limitations.add("각 측정값은 다음 측정시각 또는 요청 종료시각까지의 구간을 대표합니다.");
+        limitations.add("6시간을 초과하는 구간은 결측으로 처리하여 발전량에 포함하지 않습니다.");
         if (!"VERIFIED".equals(turbine.get("verificationStatus"))) {
             limitations.add("검증되지 않은 DRAFT power curve입니다. 설치 판단에 사용하지 마세요.");
         }
         return mapOf("dataWindow", mapOf("from", request.from(), "to", request.to(),
-                        "points", points.size(), "excludedPoints", allCount - points.size()),
+                        "points", points.size(), "excludedPoints", allCount - points.size(),
+                        "missingIntervals", missingIntervals),
                 "model", mapOf("turbineId", request.turbineId(), "curveVersion", turbine.get("curveVersion"),
                         "verificationStatus", turbine.get("verificationStatus"), "placementFactor", placement),
                 "energyKwh", energyKwh, "savingsKrw", savings,
                 "carbonKg", energyKwh * request.carbonFactorKgPerKwh(), "simplePaybackYears", payback,
+                "resultType", "PRELIMINARY_SCENARIO",
                 "series", series, "limitations", limitations);
     }
 
@@ -157,6 +164,8 @@ public class ModelService {
         return mapOf("buildingId", request.buildingId(), "ventId", request.ventId(), "source", request.source(),
                 "densityWM2", density, "candidates", selected, "modelVersion", "HEURISTIC-v1",
                 "isInstallationRecommendation", false,
+                "resultType", "PRELIMINARY_SCENARIO",
+                "conversionFactorNotice", "효율은 선행연구의 성능을 직접 적용한 값이 아닌 사용자 가정값입니다.",
                 "limitations", List.of("거리·각도 설명용 휴리스틱입니다.", "안전·압력손실·접근성을 현장에서 검토해야 합니다."));
     }
 
