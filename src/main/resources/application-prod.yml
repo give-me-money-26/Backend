@@ -23,5 +23,5 @@ management:
 
 aeroharvest:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://example.invalid}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://aero-harvest.vercel.app,https://aero-map-xi.vercel.app,http://localhost:5173}
 
