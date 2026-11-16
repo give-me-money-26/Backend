@@ -40,6 +40,19 @@ class AeroHarvestBackendApplicationTests {
 	}
 
 	@Test
+	void simulationIncludesSeededTurbineScenariosWithInterpretation() {
+		var request = new SimulationRequest("NICHOLLS", SourceMode.TIME_SLOT, 15, null,
+				0.8, 25.0, 2.0, 0.0, 8.0, 365, 150.0, 0.4, null);
+
+		var scenarios = simulations.calculate(request).turbineScenarios();
+
+		assertThat(scenarios).extracting(s -> s.turbineId()).containsExactly("TURBINE-1", "TURBINE-2", "TURBINE-3");
+		assertThat(scenarios.get(0).paybackYears()).isBetween(60.0, 80.0);
+		assertThat(scenarios.get(0).interpretation().revenue()).contains("니콜스관은", "설치비 회수에 약");
+		assertThat(scenarios.get(0).interpretation().environment()).contains("소나무");
+	}
+
+	@Test
 	void storesAndSearchesAFieldMeasurement() {
 		var measuredAt = OffsetDateTime.parse("2026-10-24T15:00:00+09:00");
 		measurements.create(new MeasurementRequest("NICHOLLS", "NICHOLLS-ROOF-01", measuredAt, "Asia/Seoul",

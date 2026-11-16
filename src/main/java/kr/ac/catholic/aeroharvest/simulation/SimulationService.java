@@ -51,8 +51,16 @@ public class SimulationService {
                 * request.operatingDaysPerYear() / 1000;
         double annualSavings = annualEnergy * request.tariffKrwPerKwh();
         double annualCarbon = annualEnergy * request.carbonFactorKgPerKwh();
-        Double payback = request.installationCostKrw() != null && annualSavings > 0
-                ? request.installationCostKrw() / annualSavings : null;
+        Double payback = payback(request.installationCostKrw(), annualSavings);
+
+        var base = new ResultInterpreter.Facts(building.getName(), request.sourceMode(), hour, windSpeed,
+                request.efficiencyPercent(), request.collectionAreaM2(), request.distanceM(),
+                request.angleDegrees(), request.operatingHoursPerDay(), placementFactor, recoveredPower,
+                annualEnergy, annualSavings, payback, annualCarbon, request.carbonFactorKgPerKwh());
+
+        List<SimulationResult.TurbineScenario> scenarios = TurbineOption.CATALOG.stream()
+                .map(option -> scenario(base, option))
+                .toList();
 
         return new SimulationResult(request.buildingId(), building.getName(), request.sourceMode(), hour,
                 windSpeed, density, placementFactor, recoveredPower, annualEnergy, annualSavings, annualCarbon,
@@ -67,7 +75,33 @@ public class SimulationService {
                         "전체 변환계수는 선행연구의 효율을 직접 적용한 값이 아닌 사용자 가정값입니다.",
                         "현재 조건이 입력한 운전시간 동안 유지된다는 단순 시나리오입니다.",
                         "유지관리비, 성능저하와 할인율은 단순 투자 회수기간에 포함되지 않습니다.",
-                        "설치 판단 전 소음, 압력손실, 배기량과 HVAC 영향을 현장에서 검증해야 합니다."));
+                        "설치 판단 전 소음, 압력손실, 배기량과 HVAC 영향을 현장에서 검증해야 합니다."),
+                interpret(base),
+                scenarios);
+    }
+
+    /** 기본 결과(배율 1)에 터빈 배율을 곱하고, 터빈 가격 + 설치비로 회수기간을 계산합니다. */
+    private static SimulationResult.TurbineScenario scenario(ResultInterpreter.Facts base, TurbineOption option) {
+        double w = option.powerWeight();
+        double power = base.recoveredPowerW() * w;
+        double energy = base.annualEnergyKwh() * w;
+        double savings = base.annualSavingsKrw() * w;
+        double carbon = base.annualCarbonKg() * w;
+        Double payback = payback((double) option.totalCostKrw(), savings);
+        var facts = new ResultInterpreter.Facts(base.buildingName(), base.sourceMode(), base.hour(),
+                base.windSpeedMS(), base.efficiencyPercent(), base.collectionAreaM2(), base.distanceM(),
+                base.angleDegrees(), base.operatingHoursPerDay(), base.placementFactor(), power, energy,
+                savings, payback, carbon, base.carbonFactorKgPerKwh());
+        return new SimulationResult.TurbineScenario(option.id(), option.name(), option.priceKrw(),
+                option.installCostKrw(), w, power, energy, savings, carbon, payback, interpret(facts));
+    }
+
+    private static Double payback(Double costKrw, double annualSavingsKrw) {
+        return costKrw != null && costKrw > 0 && annualSavingsKrw > 0 ? costKrw / annualSavingsKrw : null;
+    }
+
+    private static SimulationResult.Interpretation interpret(ResultInterpreter.Facts facts) {
+        return new SimulationResult.Interpretation(ResultInterpreter.revenue(facts),
+                ResultInterpreter.environment(facts));
     }
 }
-
