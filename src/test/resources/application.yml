@@ -8,4 +8,5 @@ spring:
 aeroharvest:
   cors:
     allowed-origins: http://localhost:3000
+    api-docs-origins: https://aeromap.khoon.net
 
