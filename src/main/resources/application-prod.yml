@@ -24,4 +24,5 @@ management:
 aeroharvest:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://aero-harvest.vercel.app,https://aero-map-xi.vercel.app,http://localhost:5173}
+    api-docs-origins: ${API_DOCS_ALLOWED_ORIGINS:https://aeromap.khoon.net}
 
