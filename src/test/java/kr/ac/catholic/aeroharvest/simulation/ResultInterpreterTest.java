@@ -24,7 +24,7 @@ class ResultInterpreterTest {
 
     @Test
     void lowWindIsTheReasonWhenPlacementIsFine() {
-        String text = ResultInterpreter.revenue(nicholls().name("학관").wind(2.44).power(1.56)
+        String text = ResultInterpreter.revenue(nicholls().name("학생회관").wind(2.44).power(1.56)
                 .energy(4.56).savings(684.6).payback(146.1).facts());
 
         assertThat(text).contains("설치비 회수에 100년 이상이 걸립니다.");
